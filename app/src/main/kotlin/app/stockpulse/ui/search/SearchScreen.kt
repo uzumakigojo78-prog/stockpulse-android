@@ -53,7 +53,7 @@ fun SearchScreen(viewModel: SearchViewModel, onBack: () -> Unit, onOpen: (String
             UiState.Loading -> Box(Modifier.fillMaxSize(), Alignment.TopCenter) {
                 LoadingIndicator(Modifier.padding(top = 32.dp))
             }
-            is UiState.Error -> ErrorState(s.message) { viewModel.onQueryChange(query) }
+            is UiState.Error -> ErrorState(s.message, viewModel::retry)
             is UiState.Success -> if (s.value.isEmpty() && query.isNotBlank()) {
                 Box(Modifier.fillMaxSize(), Alignment.TopCenter) {
                     Text("No matches for \"$query\"", Modifier.padding(32.dp))

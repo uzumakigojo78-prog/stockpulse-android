@@ -13,6 +13,8 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
+import java.io.IOException
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -40,5 +42,18 @@ class SearchViewModelTest {
         advanceUntilIdle()
         assertEquals(0, api.searchCalls)
         assertEquals(emptyList<Any>(), (vm.hits.value as UiState.Success).value)
+    }
+
+    @Test
+    fun retryAfterErrorSearchesAgain() = runTest {
+        val api = FakeStockApi().apply { failure = IOException("offline") }
+        val vm = SearchViewModel(StockRepository(api))
+        vm.onQueryChange("apple")
+        advanceUntilIdle()
+        assertTrue(vm.hits.value is UiState.Error)
+        api.failure = null
+        vm.retry()
+        advanceUntilIdle()
+        assertEquals(listOf("AAPL"), (vm.hits.value as UiState.Success).value.map { it.symbol })
     }
 }

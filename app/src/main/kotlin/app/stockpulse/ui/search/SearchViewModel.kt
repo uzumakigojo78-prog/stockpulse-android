@@ -10,6 +10,7 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flow
@@ -22,10 +23,12 @@ class SearchViewModel(private val repo: StockRepository) : ViewModel() {
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query
 
-    val hits: StateFlow<UiState<List<SearchHit>>> = _query
-        .debounce(DEBOUNCE_MS)
-        .map { it.trim() }
-        .distinctUntilChanged()
+    private val retryTick = MutableStateFlow(0)
+
+    val hits: StateFlow<UiState<List<SearchHit>>> = combine(
+        _query.debounce(DEBOUNCE_MS).map { it.trim() }.distinctUntilChanged(),
+        retryTick,
+    ) { q, _ -> q }
         .flatMapLatest { q ->
             flow {
                 if (q.isEmpty()) {
@@ -42,6 +45,10 @@ class SearchViewModel(private val repo: StockRepository) : ViewModel() {
             }
         }
         .stateIn(viewModelScope, SharingStarted.Eagerly, UiState.Success(emptyList()))
+
+    fun retry() {
+        retryTick.value++
+    }
 
     fun onQueryChange(text: String) {
         _query.value = text

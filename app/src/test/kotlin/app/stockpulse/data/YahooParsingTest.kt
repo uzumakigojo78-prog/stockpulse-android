@@ -35,4 +35,18 @@ class YahooParsingTest {
     fun errorPayloadThrowsNotFound() {
         assertThrows(StockException.NotFound::class.java) { parseChart(fixture("chart_not_found.json")) }
     }
+
+    @Test
+    fun parsesRealYahooChartPayload() {
+        val data = parseChart(fixture("real_chart_aapl_1mo.json"))
+        assertEquals("AAPL", data.quote.symbol)
+        assertEquals(true, data.bars.size > 10 && data.quote.price > 0)
+    }
+
+    @Test
+    fun parsesRealYahooSearchPayload() {
+        val hits = parseSearch(fixture("real_search_apple.json"))
+        assertEquals("AAPL", hits.first().symbol)
+        assertEquals(true, hits.none { it.symbol.endsWith("=F") }) // futures are filtered out
+    }
 }
