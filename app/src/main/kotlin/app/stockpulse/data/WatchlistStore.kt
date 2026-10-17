@@ -13,7 +13,10 @@ interface WatchlistStore {
     suspend fun remove(symbol: String)
 }
 
-val DEFAULT_WATCHLIST = listOf("AAPL", "MSFT", "NVDA", "TSLA", "AMZN", "GOOGL", "META", "NFLX", "AMD", "JPM")
+val POPULAR_STOCKS = listOf(
+    "AAPL", "MSFT", "NVDA", "TSLA", "AMZN", "GOOGL", "META", "NFLX",
+    "AMD", "JPM", "V", "DIS", "COST", "WMT", "KO",
+)
 
 private val Context.watchlistDataStore by preferencesDataStore("watchlist")
 private val SYMBOLS_KEY = stringPreferencesKey("symbols")
@@ -22,7 +25,7 @@ class DataStoreWatchlistStore(context: Context) : WatchlistStore {
     private val store = context.applicationContext.watchlistDataStore
 
     override val symbols: Flow<List<String>> = store.data.map { prefs ->
-        prefs[SYMBOLS_KEY]?.split(',')?.filter { it.isNotBlank() } ?: DEFAULT_WATCHLIST
+        prefs[SYMBOLS_KEY]?.split(',')?.filter { it.isNotBlank() } ?: emptyList()
     }
 
     override suspend fun add(symbol: String) = update { current ->
@@ -34,7 +37,7 @@ class DataStoreWatchlistStore(context: Context) : WatchlistStore {
 
     private suspend fun update(transform: (List<String>) -> List<String>) {
         store.edit { prefs ->
-            val current = prefs[SYMBOLS_KEY]?.split(',')?.filter { it.isNotBlank() } ?: DEFAULT_WATCHLIST
+            val current = prefs[SYMBOLS_KEY]?.split(',')?.filter { it.isNotBlank() } ?: emptyList()
             prefs[SYMBOLS_KEY] = transform(current).joinToString(",")
         }
     }

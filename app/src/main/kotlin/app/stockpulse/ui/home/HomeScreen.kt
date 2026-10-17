@@ -17,10 +17,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialShapes
@@ -42,6 +45,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.stockpulse.domain.Quote
 import app.stockpulse.ui.UiState
+import app.stockpulse.ui.components.AppLogo
 import app.stockpulse.ui.components.Sparkline
 import app.stockpulse.ui.theme.changeColor
 import java.util.Locale
@@ -54,18 +58,27 @@ fun formatChange(q: Quote): String =
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel,
+    title: String,
+    subtitle: String,
+    emptyText: String,
     onSearch: () -> Unit,
     onOpen: (String) -> Unit,
 ) {
     val state by viewModel.state.collectAsState()
     val refreshing by viewModel.refreshing.collectAsState()
+    val favorites by viewModel.favorites.collectAsState()
     val scroll = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
         modifier = Modifier.nestedScroll(scroll.nestedScrollConnection),
         topBar = {
             LargeFlexibleTopAppBar(
-                title = { Text("StockPulse") },
-                subtitle = { Text("Prices & statistical forecasts") },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        AppLogo(36.dp)
+                        Text(title, Modifier.padding(start = 12.dp))
+                    }
+                },
+                subtitle = { Text(subtitle) },
                 scrollBehavior = scroll,
             )
         },
@@ -83,8 +96,16 @@ fun HomeScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     item { SearchEntry(onSearch) }
+                    if (s.value.isEmpty()) {
+                        item { Text(emptyText, Modifier.padding(16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    }
                     items(s.value, key = { it.quote.symbol }) { item ->
-                        StockCard(item, onClick = { onOpen(item.quote.symbol) })
+                        StockCard(
+                            item,
+                            starred = item.quote.symbol in favorites,
+                            onStar = { viewModel.toggleFavorite(item.quote.symbol) },
+                            onClick = { onOpen(item.quote.symbol) },
+                        )
                     }
                 }
             }
@@ -113,7 +134,7 @@ private fun SearchEntry(onClick: () -> Unit) {
 }
 
 @Composable
-private fun StockCard(item: WatchItem, onClick: () -> Unit) {
+private fun StockCard(item: WatchItem, starred: Boolean, onStar: () -> Unit, onClick: () -> Unit) {
     val q = item.quote
     val color = changeColor(q.change)
     Card(
@@ -138,7 +159,16 @@ private fun StockCard(item: WatchItem, onClick: () -> Unit) {
                 )
             }
             Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
-                Text(q.symbol, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(q.symbol, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    IconButton(onClick = onStar, modifier = Modifier.size(32.dp)) {
+                        Icon(
+                            if (starred) Icons.Rounded.Star else Icons.Rounded.StarBorder,
+                            contentDescription = if (starred) "Remove from favorites" else "Add to favorites",
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                }
                 Text(
                     q.name,
                     style = MaterialTheme.typography.bodySmall,
@@ -147,7 +177,7 @@ private fun StockCard(item: WatchItem, onClick: () -> Unit) {
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            Sparkline(item.closes, color, Modifier.width(72.dp).height(36.dp))
+            Sparkline(item.closes, color, Modifier.width(60.dp).height(36.dp))
             Column(Modifier.padding(start = 12.dp), horizontalAlignment = Alignment.End) {
                 Text(formatPrice(q.price), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Text(formatChange(q), style = MaterialTheme.typography.labelMedium, color = color)
