@@ -2,6 +2,7 @@ package app.stockpulse.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.stockpulse.data.ChartRange
 import app.stockpulse.data.StockRepository
 import app.stockpulse.data.WatchlistStore
 import app.stockpulse.domain.Quote
@@ -15,19 +16,31 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
+data class WatchItem(val quote: Quote, val closes: List<Double>)
+
 class HomeViewModel(
     private val repo: StockRepository,
     private val store: WatchlistStore,
 ) : ViewModel() {
-    private val _state = MutableStateFlow<UiState<List<Quote>>>(UiState.Loading)
-    val state: StateFlow<UiState<List<Quote>>> = _state
+    private val _state = MutableStateFlow<UiState<List<WatchItem>>>(UiState.Loading)
+    val state: StateFlow<UiState<List<WatchItem>>> = _state
+
+    private val _refreshing = MutableStateFlow(false)
+    val refreshing: StateFlow<Boolean> = _refreshing
 
     init {
         viewModelScope.launch { store.symbols.collectLatest { load(it) } }
     }
 
     fun refresh() {
-        viewModelScope.launch { load(store.symbols.first()) }
+        viewModelScope.launch {
+            _refreshing.value = true
+            try {
+                load(store.symbols.first())
+            } finally {
+                _refreshing.value = false
+            }
+        }
     }
 
     fun remove(symbol: String) {
@@ -39,8 +52,8 @@ class HomeViewModel(
             _state.value = UiState.Success(emptyList())
             return
         }
-        val results = coroutineScope { symbols.map { s -> async { repo.quote(s) } }.awaitAll() }
-        val quotes = results.mapNotNull { it.getOrNull()?.quote }
+        val results = coroutineScope { symbols.map { s -> async { repo.history(s, ChartRange.M1) } }.awaitAll() }
+        val quotes = results.mapNotNull { r -> r.getOrNull()?.let { WatchItem(it.quote, it.bars.map { b -> b.close }) } }
         _state.value = if (quotes.isEmpty()) {
             UiState.Error(results.firstNotNullOfOrNull { it.exceptionOrNull()?.message } ?: "Could not load prices")
         } else {

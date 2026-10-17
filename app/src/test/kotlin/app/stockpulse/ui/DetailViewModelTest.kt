@@ -24,8 +24,10 @@ class DetailViewModelTest {
     @Before fun setUp() = Dispatchers.setMain(StandardTestDispatcher())
     @After fun tearDown() = Dispatchers.resetMain()
 
+    private val store = FakeWatchlistStore(emptyList())
+
     private fun vm(api: FakeStockApi, symbol: String = "AAPL") =
-        DetailViewModel(StockRepository(api), ForecastEngine(), symbol)
+        DetailViewModel(StockRepository(api), ForecastEngine(), store, symbol)
 
     @Test
     fun detailComputesForecastFromDailyBars() = runTest {
@@ -63,6 +65,16 @@ class DetailViewModelTest {
         vm.retry()
         advanceUntilIdle()
         assertTrue(vm.state.value is UiState.Success)
+    }
+
+    @Test
+    fun toggleWatchlistAddsThenRemoves() = runTest {
+        val vm = vm(FakeStockApi())
+        advanceUntilIdle()
+        vm.toggleWatchlist(); advanceUntilIdle()
+        assertTrue(vm.inWatchlist.value)
+        vm.toggleWatchlist(); advanceUntilIdle()
+        assertTrue(!vm.inWatchlist.value)
     }
 
     @Test

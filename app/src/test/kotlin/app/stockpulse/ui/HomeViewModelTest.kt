@@ -22,13 +22,20 @@ class HomeViewModelTest {
     @Before fun setUp() = Dispatchers.setMain(StandardTestDispatcher())
     @After fun tearDown() = Dispatchers.resetMain()
 
-    private fun quotes(vm: HomeViewModel) = (vm.state.value as UiState.Success).value.map { it.symbol }
+    private fun quotes(vm: HomeViewModel) = (vm.state.value as UiState.Success).value.map { it.quote.symbol }
 
     @Test
     fun homeLoadsQuotesForWatchlist() = runTest {
         val vm = HomeViewModel(StockRepository(FakeStockApi()), FakeWatchlistStore(listOf("AAPL", "MSFT")))
         advanceUntilIdle()
         assertEquals(listOf("AAPL", "MSFT"), quotes(vm))
+    }
+
+    @Test
+    fun homeItemsCarrySparklineCloses() = runTest {
+        val vm = HomeViewModel(StockRepository(FakeStockApi()), FakeWatchlistStore(listOf("AAPL")))
+        advanceUntilIdle()
+        assertEquals(60, (vm.state.value as UiState.Success).value.single().closes.size)
     }
 
     @Test
